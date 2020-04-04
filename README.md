@@ -1,4 +1,4 @@
-Design and Implementation of a Virtual Memory Unit (MMU)
+**Design and Implementation of a Virtual Memory Unit (MMU)**
 
 to run with no page replacement:
 change define statement for PAGE_TABLE_SIZE to 256
