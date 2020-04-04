@@ -46,6 +46,12 @@ void clear_page_to_frame(void);
 // Main Method
 int main(int argc, char *argv[])
 {
+
+    if (argc < 3)
+    {
+        printf("Incorrect number of args\n");
+        exit(1);
+    }
     FILE *address_file;
     address_file = fopen(argv[2],"r");
 
@@ -99,7 +105,7 @@ int main(int argc, char *argv[])
             // Print Values
             //unsigned long physical_address = get_tlb_pad(page_num, offset);
             fprintf(out_file, "%d,%lu,%d\n", virtual, physical_address, stored_byte);
-            printf("%d\n", stored_byte);
+            //printf("%d\n", stored_byte);
         } else 
         {
             // TLB Miss
@@ -110,7 +116,7 @@ int main(int argc, char *argv[])
                 stored_byte = get_pgt_data(page_num, offset);
 
                 // Print values
-                printf("%d\n", stored_byte);
+                //printf("%d\n", stored_byte);
 
                 int frame = page_to_frame[page_num];
                 int unsigned long physical_address = (frame << PAGE_SHIFT) | offset;
@@ -213,7 +219,7 @@ int main(int argc, char *argv[])
                 //Print values
                 //int physical_address = get_pgt_pad(page_num, offset);
                 fprintf(out_file, "%d,%lu,%d\n", virtual, physical_address, stored_byte);
-                printf("%d\n", stored_byte);
+                //printf("%d\n", stored_byte);
 
                 // Circular buffer iteration for FIFO order
                 tlb_counter = (tlb_counter + 1) % 16;
