@@ -93,6 +93,9 @@ int main(int argc, char *argv[])
             int frame = page_to_frame[page_num];
             int unsigned long physical_address = (frame << PAGE_SHIFT) | offset;
 
+            delete(&pgt_head, page_num);
+            insert(&pgt_head, page_num);
+
             // Print Values
             //unsigned long physical_address = get_tlb_pad(page_num, offset);
             fprintf(out_file, "%d,%lu,%d\n", virtual, physical_address, stored_byte);
