@@ -10,6 +10,7 @@
 #define INACTIVE_BIT (-1)
 #define PAGE_TABLE_SIZE (128)
 #define PAGE_SIZE (256)
+#define PHYSICAL_MEMORY_SIZE (256)
 #define TLB_ENTRIES (16)
 #define FRAME_SIZE (256)
 #define P_MEMORY (65536)
@@ -22,8 +23,10 @@ struct node{
 };
 
 // Global Variables
+// pagetable[index][PAGE_SIZE] => Contains Page #
 char pagetable[PAGE_TABLE_SIZE][PAGE_SIZE + 1];
 char tlb[TLB_ENTRIES][PAGE_SIZE + 1];
+int page_to_frame[PHYSICAL_MEMORY_SIZE];// [PAGE NUMBER, FRAME NUMBER]
 int fault_count = 0;
 struct node *pgt_head;
 
@@ -38,6 +41,7 @@ char get_pgt_data(int page_num, int offset);
 void clear_tlb(void);
 unsigned long get_tlb_pad(int page_num, int offset);
 unsigned long get_pgt_pad(int page_num, int offset);
+void clear_page_to_frame(void);
 
 // Main Method
 int main(int argc, char *argv[])
@@ -53,15 +57,20 @@ int main(int argc, char *argv[])
     //output.csv
     FILE *out_file;
     out_file = fopen(OUTPUT_FILENAME, "w+");
-    
+
+    // Local Variables
+    int current_frame = 0;
     int tlb_counter = 0;
     int pagetable_counter = 0;
-    clear_pagetable();
-    clear_tlb();
     int tlb_hit = 0;
     int total_iterations = 0;
     char *temp;
     char line[LINE_LENGTH];
+
+    // Clear and set up arrays with INVALID_BIT
+    clear_pagetable();
+    clear_tlb();
+    clear_page_to_frame();
 
     // Iterate through the input address file
     while (fgets(line,LINE_LENGTH,address_file) != NULL)
@@ -70,7 +79,7 @@ int main(int argc, char *argv[])
         int virtual = atoi(temp);
 
         int page_num = (virtual & PAGE_MASK) >> PAGE_SHIFT;
-        
+
         // Convert the page number to a char for storage in the tlb and pagetable
         char page_num_char = page_num;
         int offset = virtual & OFFSET_MASK;
@@ -81,8 +90,11 @@ int main(int argc, char *argv[])
             tlb_hit++;
             stored_byte = get_tlb_data(page_num, offset);
 
+            int frame = page_to_frame[page_num];
+            int unsigned long physical_address = (frame << PAGE_SHIFT) | offset;
+
             // Print Values
-            unsigned long physical_address = get_tlb_pad(page_num, offset);
+            //unsigned long physical_address = get_tlb_pad(page_num, offset);
             fprintf(out_file, "%d,%lu,%d\n", virtual, physical_address, stored_byte);
             printf("%d\n", stored_byte);
         } else 
@@ -96,8 +108,12 @@ int main(int argc, char *argv[])
 
                 // Print values
                 printf("%d\n", stored_byte);
-                int physical_address = get_pgt_pad(page_num, offset);
-                fprintf(out_file, "%d,%u,%d\n", virtual, physical_address, stored_byte);
+
+                int frame = page_to_frame[page_num];
+                int unsigned long physical_address = (frame << PAGE_SHIFT) | offset;
+
+                //int physical_address = get_pgt_pad(page_num, offset);
+                fprintf(out_file, "%d,%lu,%d\n", virtual, physical_address, stored_byte);
 
                 // Update TLB
                 char data_temp[PAGE_SIZE];
@@ -121,7 +137,7 @@ int main(int argc, char *argv[])
                 insert(&pgt_head, page_num);
             } else 
             {
-                // Not found In pagetable
+                // PageTable Miss
                 char data_temp[PAGE_SIZE];           
                 int pagetable_index;
 
@@ -174,9 +190,26 @@ int main(int argc, char *argv[])
                 // Right col value
                 stored_byte = get_pgt_data(page_num, offset);
                 
+                // Physical Address
+                int frame;
+                if(page_to_frame[page_num] != -1)
+                {
+                    // Found in page-to-frame array
+                    frame = page_to_frame[page_num];
+                } else 
+                {
+                    // Not found in page-to-frame array
+                    page_to_frame[page_num] = current_frame;
+                    frame = current_frame;
+                    current_frame++;
+                }
+                
+                // Calculate physical address
+                int unsigned long physical_address = (frame << PAGE_SHIFT) | offset;
+
                 //Print values
-                int physical_address = get_pgt_pad(page_num, offset);
-                fprintf(out_file, "%d,%u,%d\n", virtual, physical_address, stored_byte);
+                //int physical_address = get_pgt_pad(page_num, offset);
+                fprintf(out_file, "%d,%lu,%d\n", virtual, physical_address, stored_byte);
                 printf("%d\n", stored_byte);
 
                 // Circular buffer iteration for FIFO order
@@ -199,6 +232,15 @@ int main(int argc, char *argv[])
     fclose(backing_store);
     fclose(out_file);
     return 0;
+}
+
+// Clear the page to frame array
+void clear_page_to_frame(void)
+{
+    for (int i = 0; i < PHYSICAL_MEMORY_SIZE; i++)
+    {
+        page_to_frame[i] = -1;
+    }
 }
 
 // Get physical address from tlb
